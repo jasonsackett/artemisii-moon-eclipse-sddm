@@ -13,6 +13,24 @@ A minimal static SDDM theme for Plasma/SDDM, built around a dark lunar-eclipse i
 
 ## Local install
 
+### easy install from zip:
+
+For CachyOS: Direct link in store (free): 
+
+https://www.opendesktop.org/p/2355277
+
+The download button on the store does not seem to work right now, but you can click on the source or homepage link from there, and download the zip (or clone it), 
+and put it in the /usr/share/sddm/themes folder
+Unzip with something like:
+
+`sudo unzip artemisii-moon-eclipse-sddm-main.zip -d /usr/share/sddm/themes/`
+
+Then go into (system-)settings->colors&themes and select the new 'artemisii...' theme, hit apply, logout, and you will see it. It does not change lock screen.
+
+I just tested this whole loop fresh from site and it works.
+
+### regular install
+
 ```bash
 sudo mkdir -p /usr/share/sddm/themes/artemisii-moon-eclipse
 sudo cp -r ./* /usr/share/sddm/themes/artemisii-moon-eclipse/
