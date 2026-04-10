@@ -1,0 +1,13 @@
+[SddmGreeterTheme]
+Name=Artemis II Moon Eclipse
+Description=Minimal static SDDM theme with a dark side lunar eclipse background
+Author=Jason Sackett
+License=MIT (theme code); NASA image used under NASA Media Usage Guidelines
+Type=sddm-theme
+Version=0.1.0
+Website=https://substack.com/@jasonsackett961254
+Screenshot=preview.png
+MainScript=Main.qml
+ConfigFile=theme.conf
+Theme-Id=artemisii-moon-eclipse
+QtVersion=6
