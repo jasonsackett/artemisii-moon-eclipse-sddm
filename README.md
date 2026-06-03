@@ -6,6 +6,10 @@ A minimal static SDDM theme for Plasma/SDDM, built around a dark lunar-eclipse i
 - I vibecoded a more simple form
 - In the original repo, when i tested it I cant use TAB to jump to the next textbox so claude added it.  
 
+## Preview 
+
+![preview](preview.png) 
+
 
 ## Files
 
