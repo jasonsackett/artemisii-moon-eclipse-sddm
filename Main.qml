@@ -26,6 +26,7 @@ Rectangle {
     property bool showPowerButtons: config.keys().indexOf("showPowerButtons") === -1 ? true : config.boolValue("showPowerButtons")
     property int sessionIndex: sessionModel.lastIndex
     property bool busy: false
+    property bool userListOpen: false
 
     function effectiveUser() {
         if (usernameInput.text !== "") {
@@ -85,23 +86,13 @@ Rectangle {
         opacity: 0.12
     }
 
-    Rectangle {
+    Item {
         id: panel
         width: root.panelWidth
         height: root.panelHeight
-        radius: root.panelRadius
-        color: Qt.rgba(0, 0, 0, root.panelOpacity)
-        border.width: 1
-        border.color: Qt.rgba(borderColor.r, borderColor.g, borderColor.b, root.borderOpacity)
         anchors.verticalCenter: parent.verticalCenter
         anchors.right: parent.right
         anchors.rightMargin: root.panelMargin
-    }
-
-    Rectangle {
-        anchors.fill: panel
-        radius: panel.radius
-        color: Qt.rgba(accentColor.r, accentColor.g, accentColor.b, root.accentOpacity)
     }
 
     Item {
@@ -115,51 +106,47 @@ Rectangle {
             anchors.right: parent.right
             text: titleText
             color: textColor
-            font.pixelSize: 28
-            font.weight: Font.DemiBold
+            font.pixelSize: 22
+            font.weight: Font.Light
+            font.letterSpacing: 2
             elide: Text.ElideRight
         }
 
-        Text {
-            id: subtitle
-            anchors.top: title.bottom
-            anchors.topMargin: 6
-            anchors.left: parent.left
-            anchors.right: parent.right
-            text: subtitleText
-            color: mutedTextColor
-            font.pixelSize: 14
-            elide: Text.ElideRight
-        }
-
-        Rectangle {
+        Item {
             id: usernameField
-            anchors.top: subtitle.bottom
-            anchors.topMargin: 24
+            z: 5
+            anchors.top: title.bottom
+            anchors.topMargin: 32
             anchors.left: parent.left
             anchors.right: parent.right
             height: root.fieldHeight
-            radius: 12
-            color: Qt.rgba(1, 1, 1, 0.08)
-            border.width: usernameInput.activeFocus ? 1 : 0
-            border.color: Qt.rgba(1, 1, 1, 0.35)
 
             TextInput {
                 id: usernameInput
-                anchors.fill: parent
-                anchors.leftMargin: 14
-                anchors.rightMargin: 14
+                anchors.left: parent.left
+                anchors.right: userSwitcher.visible ? userSwitcher.left : parent.right
+                anchors.rightMargin: userSwitcher.visible ? 8 : 0
+                anchors.verticalCenter: parent.verticalCenter
                 verticalAlignment: TextInput.AlignVCenter
                 color: textColor
                 selectionColor: Qt.rgba(1, 1, 1, 0.25)
                 selectedTextColor: textColor
-                font.pixelSize: 16
+                font.pixelSize: 15
                 clip: true
                 text: userModel.lastUser ? userModel.lastUser : ""
-                focus: text === ""
                 Keys.onPressed: function(event) {
-                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                    if (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier)) {
+                        loginButton.forceActiveFocus()
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Tab) {
+                        userListOpen = false
                         passwordInput.forceActiveFocus()
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Down && userModel.count > 0) {
+                        userListOpen = true
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Escape && userListOpen) {
+                        userListOpen = false
                         event.accepted = true
                     }
                 }
@@ -167,43 +154,136 @@ Rectangle {
 
             Text {
                 anchors.left: parent.left
-                anchors.leftMargin: 14
                 anchors.verticalCenter: parent.verticalCenter
                 visible: usernameInput.text === "" && !usernameInput.activeFocus
-                text: "Username"
+                text: "username"
                 color: mutedTextColor
-                font.pixelSize: 16
+                font.pixelSize: 15
+            }
+
+            Item {
+                id: userSwitcher
+                visible: userModel.count > 0
+                width: 20
+                height: parent.height
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "⌄"
+                    color: mutedTextColor
+                    font.pixelSize: 16
+                    rotation: userListOpen ? 180 : 0
+                    Behavior on rotation { NumberAnimation { duration: 120 } }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: userListOpen = !userListOpen
+                }
+            }
+
+            Rectangle {
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: 1
+                color: usernameInput.activeFocus ? Qt.rgba(1, 1, 1, 0.7) : Qt.rgba(1, 1, 1, 0.25)
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                visible: userListOpen
+                z: 5
+                onClicked: userListOpen = false
+            }
+
+            Rectangle {
+                id: userListPopup
+                z: 10
+                anchors.top: parent.bottom
+                anchors.topMargin: 6
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: Math.min(userModel.count, 5) * 38
+                radius: 10
+                color: Qt.rgba(0.08, 0.08, 0.1, 0.95)
+                border.width: 1
+                border.color: Qt.rgba(1, 1, 1, 0.12)
+                visible: userListOpen && userModel.count > 0
+                clip: true
+
+                ListView {
+                    id: userListView
+                    anchors.fill: parent
+                    model: userModel
+                    interactive: contentHeight > height
+                    boundsBehavior: Flickable.StopAtBounds
+                    delegate: Rectangle {
+                        width: userListView.width
+                        height: 38
+                        color: userItemMouseArea.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            elide: Text.ElideRight
+                            text: model.realName && model.realName !== "" ? model.realName : model.name
+                            color: textColor
+                            font.pixelSize: 14
+                        }
+
+                        MouseArea {
+                            id: userItemMouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                usernameInput.text = model.name
+                                userListOpen = false
+                                passwordInput.forceActiveFocus()
+                            }
+                        }
+                    }
+                }
             }
         }
 
-        Rectangle {
+        Item {
             id: passwordField
             anchors.top: usernameField.bottom
-            anchors.topMargin: 14
+            anchors.topMargin: 20
             anchors.left: parent.left
             anchors.right: parent.right
             height: root.fieldHeight
-            radius: 12
-            color: Qt.rgba(1, 1, 1, 0.08)
-            border.width: passwordInput.activeFocus ? 1 : 0
-            border.color: Qt.rgba(1, 1, 1, 0.35)
 
             TextInput {
                 id: passwordInput
-                anchors.fill: parent
-                anchors.leftMargin: 14
-                anchors.rightMargin: 14
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
                 verticalAlignment: TextInput.AlignVCenter
                 color: textColor
                 selectionColor: Qt.rgba(1, 1, 1, 0.25)
                 selectedTextColor: textColor
-                font.pixelSize: 16
+                font.pixelSize: 15
                 echoMode: TextInput.Password
                 passwordCharacter: "•"
                 clip: true
-                focus: usernameInput.text !== ""
+                onActiveFocusChanged: if (activeFocus) userListOpen = false
                 Keys.onPressed: function(event) {
-                    if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && !busy) {
+                    if (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier)) {
+                        usernameInput.forceActiveFocus()
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Tab) {
+                        loginButton.forceActiveFocus()
+                        event.accepted = true
+                    } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && !busy) {
                         tryLogin()
                         event.accepted = true
                     }
@@ -212,12 +292,19 @@ Rectangle {
 
             Text {
                 anchors.left: parent.left
-                anchors.leftMargin: 14
                 anchors.verticalCenter: parent.verticalCenter
                 visible: passwordInput.text === "" && !passwordInput.activeFocus
-                text: "Password"
+                text: "password"
                 color: mutedTextColor
-                font.pixelSize: 16
+                font.pixelSize: 15
+            }
+
+            Rectangle {
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: 1
+                color: passwordInput.activeFocus ? Qt.rgba(1, 1, 1, 0.7) : Qt.rgba(1, 1, 1, 0.25)
             }
         }
 
@@ -245,24 +332,46 @@ Rectangle {
             wrapMode: Text.Wrap
         }
 
-        Rectangle {
+        Item {
             id: loginButton
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: footerRow.top
             anchors.bottomMargin: 12
             height: root.buttonHeight
-            radius: 12
-            color: busy ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(1, 1, 1, 0.22)
-            border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.10)
+            focus: false
+            activeFocusOnTab: false
+
+            Keys.onPressed: function(event) {
+                if (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier)) {
+                    passwordInput.forceActiveFocus()
+                    event.accepted = true
+                } else if (event.key === Qt.Key_Tab) {
+                    usernameInput.forceActiveFocus()
+                    event.accepted = true
+                } else if ((event.key === Qt.Key_Return || event.key === Qt.Key_Enter) && !busy) {
+                    tryLogin()
+                    event.accepted = true
+                }
+            }
 
             Text {
+                id: loginButtonText
                 anchors.centerIn: parent
-                text: busy ? "Signing in..." : "Sign in"
-                color: textColor
-                font.pixelSize: 16
-                font.weight: Font.Medium
+                text: busy ? "signing in..." : "sign in"
+                color: busy ? mutedTextColor : textColor
+                font.pixelSize: 14
+                font.letterSpacing: 1.5
+            }
+
+            Rectangle {
+                anchors.top: loginButtonText.bottom
+                anchors.topMargin: 2
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: loginButtonText.width
+                height: 1
+                color: Qt.rgba(1, 1, 1, 0.6)
+                visible: loginButton.activeFocus
             }
 
             MouseArea {
