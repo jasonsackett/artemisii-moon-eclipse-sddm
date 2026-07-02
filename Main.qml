@@ -26,6 +26,7 @@ Rectangle {
     property bool showPowerButtons: config.keys().indexOf("showPowerButtons") === -1 ? true : config.boolValue("showPowerButtons")
     property int sessionIndex: sessionModel.lastIndex
     property bool busy: false
+    property bool userListOpen: false
 
     function effectiveUser() {
         if (usernameInput.text !== "") {
@@ -113,6 +114,7 @@ Rectangle {
 
         Item {
             id: usernameField
+            z: 5
             anchors.top: title.bottom
             anchors.topMargin: 32
             anchors.left: parent.left
@@ -122,7 +124,8 @@ Rectangle {
             TextInput {
                 id: usernameInput
                 anchors.left: parent.left
-                anchors.right: parent.right
+                anchors.right: userSwitcher.visible ? userSwitcher.left : parent.right
+                anchors.rightMargin: userSwitcher.visible ? 8 : 0
                 anchors.verticalCenter: parent.verticalCenter
                 verticalAlignment: TextInput.AlignVCenter
                 color: textColor
@@ -136,7 +139,14 @@ Rectangle {
                         loginButton.forceActiveFocus()
                         event.accepted = true
                     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Tab) {
+                        userListOpen = false
                         passwordInput.forceActiveFocus()
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Down && userModel.count > 0) {
+                        userListOpen = true
+                        event.accepted = true
+                    } else if (event.key === Qt.Key_Escape && userListOpen) {
+                        userListOpen = false
                         event.accepted = true
                     }
                 }
@@ -151,12 +161,96 @@ Rectangle {
                 font.pixelSize: 15
             }
 
+            Item {
+                id: userSwitcher
+                visible: userModel.count > 0
+                width: 20
+                height: parent.height
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "⌄"
+                    color: mutedTextColor
+                    font.pixelSize: 16
+                    rotation: userListOpen ? 180 : 0
+                    Behavior on rotation { NumberAnimation { duration: 120 } }
+                }
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: userListOpen = !userListOpen
+                }
+            }
+
             Rectangle {
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left
                 anchors.right: parent.right
                 height: 1
                 color: usernameInput.activeFocus ? Qt.rgba(1, 1, 1, 0.7) : Qt.rgba(1, 1, 1, 0.25)
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                visible: userListOpen
+                z: 5
+                onClicked: userListOpen = false
+            }
+
+            Rectangle {
+                id: userListPopup
+                z: 10
+                anchors.top: parent.bottom
+                anchors.topMargin: 6
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: Math.min(userModel.count, 5) * 38
+                radius: 10
+                color: Qt.rgba(0.08, 0.08, 0.1, 0.95)
+                border.width: 1
+                border.color: Qt.rgba(1, 1, 1, 0.12)
+                visible: userListOpen && userModel.count > 0
+                clip: true
+
+                ListView {
+                    id: userListView
+                    anchors.fill: parent
+                    model: userModel
+                    interactive: contentHeight > height
+                    boundsBehavior: Flickable.StopAtBounds
+                    delegate: Rectangle {
+                        width: userListView.width
+                        height: 38
+                        color: userItemMouseArea.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            elide: Text.ElideRight
+                            text: model.realName && model.realName !== "" ? model.realName : model.name
+                            color: textColor
+                            font.pixelSize: 14
+                        }
+
+                        MouseArea {
+                            id: userItemMouseArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                usernameInput.text = model.name
+                                userListOpen = false
+                                passwordInput.forceActiveFocus()
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -181,6 +275,7 @@ Rectangle {
                 echoMode: TextInput.Password
                 passwordCharacter: "•"
                 clip: true
+                onActiveFocusChanged: if (activeFocus) userListOpen = false
                 Keys.onPressed: function(event) {
                     if (event.key === Qt.Key_Tab && (event.modifiers & Qt.ShiftModifier)) {
                         usernameInput.forceActiveFocus()
